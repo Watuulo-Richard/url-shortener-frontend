@@ -19,7 +19,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { AppLogoIcon } from "@/components/logo";
-import { Icons } from "@/components/icons";
 
 const signinSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -50,7 +49,7 @@ export default function SignInPage() {
       toast.success("Success!", {
         description: "You have successfully signed in.",
       });
-      router.push("/dashboard");
+      router.replace("/dashboard");
     } catch (error) {
       toast.error("Error", {
         description:

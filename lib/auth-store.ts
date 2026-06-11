@@ -25,25 +25,53 @@ export const isAuthenticatedStore = authStore.select('isAuthenticated')
 export const isLoadingStore = authStore.select('isLoading')
 export const errorStore = authStore.select('error')
 
+const setAuthenticatedSession = (user: User, token: string) => {
+  authStore.set({
+    user,
+    token,
+    isAuthenticated: true,
+    isLoading: false,
+    error: null,
+  })
+
+  localStorage.setItem('auth_token', token)
+}
+
+const clearAuthenticatedSession = () => {
+  authStore.set({
+    user: null,
+    token: null,
+    isAuthenticated: false,
+    isLoading: false,
+    error: null,
+  })
+
+  localStorage.removeItem('auth_token')
+}
+
 // Auth action functions
 export const signin = async (email: string, password: string) => {
   isLoadingStore.set(true)
   errorStore.set(null)
 
   try {
-    const { user, token } = await authApi.signin(email, password)
-    
-    // Update store with user data
-    userStore.set(user)
-    tokenStore.set(token)
-    isAuthenticatedStore.set(true)
-    
-    // Persist token
-    localStorage.setItem('auth_token', token)
+    const { user, token, error } = await authApi.signin(email, password)
+
+    if (error) {
+      errorStore.set(error)
+      throw new Error(error) // <-- throw so the catch in SignInPage fires
+    }
+
+    if (!user || !token) {
+      throw new Error('Signin succeeded, but the server did not return a valid session.')
+    }
+
+    setAuthenticatedSession(user, token)
     
     return user
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Login failed'
+    clearAuthenticatedSession()
     errorStore.set(message)
     throw error
   } finally {
@@ -66,13 +94,14 @@ export const signup = async (email: string, password: string, name: string) => {
       }
     }
 
-    // Update store with user data
-    userStore.set(user)
-    tokenStore.set(token)
-    isAuthenticatedStore.set(true)
-    
-    // Persist token
-    localStorage.setItem('auth_token', token as string)
+    if (!user || !token) {
+      return {
+        error: 'Signup succeeded, but the server did not return a valid session.',
+        user: null
+      }
+    }
+
+    setAuthenticatedSession(user, token)
     
     return {
       user: user,
@@ -98,17 +127,7 @@ export const signout = async () => {
   } catch (error) {
     console.error('Signout error:', error)
   } finally {
-    // Clear auth state
-    authStore.set({
-      user: null,
-      token: null,
-      isAuthenticated: false,
-      isLoading: false,
-      error: null,
-    })
-    
-    // Clear persisted token
-    localStorage.removeItem('auth_token')
+    clearAuthenticatedSession()
   }
 }
 
@@ -125,13 +144,10 @@ export const checkAuth = async () => {
   try {
     const user = await authApi.getCurrentUser(token)
     
-    // Restore user session
-    userStore.set(user)
-    tokenStore.set(token)
-    isAuthenticatedStore.set(true)
+    setAuthenticatedSession(user, token)
   } catch (error) {
     // Clear invalid token
-    localStorage.removeItem('auth_token')
+    clearAuthenticatedSession()
     errorStore.set('Session expired. Please login again.')
   } finally {
     isLoadingStore.set(false)
