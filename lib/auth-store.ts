@@ -56,17 +56,28 @@ export const signup = async (email: string, password: string, name: string) => {
   errorStore.set(null)
 
   try {
-    const { user, token } = await authApi.signup(email, password, name)
+    const { user, token, error } = await authApi.signup(email, password, name)
     
+    if (error) {
+      errorStore.set(error)
+      return {
+        error: error,
+        user: null
+      }
+    }
+
     // Update store with user data
     userStore.set(user)
     tokenStore.set(token)
     isAuthenticatedStore.set(true)
     
     // Persist token
-    localStorage.setItem('auth_token', token)
+    localStorage.setItem('auth_token', token as string)
     
-    return user
+    return {
+      user: user,
+      error: null
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Signup failed'
     errorStore.set(message)

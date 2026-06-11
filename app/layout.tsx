@@ -39,8 +39,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`font-sans antialiased`}>
+        <Toaster richColors position="top-right" />
         <AuthProvider>
-          <Toaster richColors />
           {children}
         </AuthProvider>
         <Analytics />

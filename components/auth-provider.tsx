@@ -1,18 +1,24 @@
 'use client'
 
-import { useEffect } from 'react'
-import { useStoreValue } from '@simplestack/store/react'
-import { isLoadingStore, checkAuth } from '@/lib/auth-store'
+import { useEffect, useState } from 'react'
+import { checkAuth } from '@/lib/auth-store'
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const isLoading = useStoreValue(isLoadingStore)
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
 
   useEffect(() => {
-    // Check authentication status on mount
-    checkAuth()
+    async function verifySession() {
+      try {
+        await checkAuth()
+      } finally {
+        setIsCheckingAuth(false)
+      }
+    }
+
+    verifySession()
   }, [])
 
-  if (isLoading) {
+  if (isCheckingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">

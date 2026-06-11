@@ -54,7 +54,17 @@ export default function SignUpPage() {
 
     try {
       const fullName = `${values.firstName} ${values.lastName}`;
-      await signup(values.email, values.password, fullName);
+      const response = await signup(values.email, values.password, fullName);
+
+      if (response.error) {
+        setIsLoading(false);
+        toast.error("Signup failed", {
+          description:
+            response.error ?? "Something went wrong. Please try again.",
+        });
+        return;
+      }
+      setIsLoading(false);
       toast.success("Success!", {
         description: "Your account has been created successfully.",
       });

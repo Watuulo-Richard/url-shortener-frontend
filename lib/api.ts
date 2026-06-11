@@ -1,3 +1,78 @@
+const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL;
+
+type ApiResponseBody = unknown
+
+function getStringValue(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null
+}
+
+function getErrorMessageFromObject(data: Record<string, unknown>): string | null {
+  const directMessage =
+    getStringValue(data.message) ??
+    getStringValue(data.error) ??
+    getStringValue(data.detail) ??
+    getStringValue(data.description)
+
+  if (directMessage) {
+    return directMessage
+  }
+
+  if (Array.isArray(data.errors)) {
+    const messages = data.errors
+      .map((error) => {
+        if (typeof error === 'string') return error
+        if (error && typeof error === 'object') {
+          return getErrorMessageFromObject(error as Record<string, unknown>)
+        }
+        return null
+      })
+      .filter(Boolean)
+
+    if (messages.length > 0) {
+      return messages.join(', ')
+    }
+  }
+
+  if (data.errors && typeof data.errors === 'object') {
+    const messages = Object.values(data.errors)
+      .flatMap((error) => (Array.isArray(error) ? error : [error]))
+      .map((error) => getStringValue(error))
+      .filter(Boolean)
+
+    if (messages.length > 0) {
+      return messages.join(', ')
+    }
+  }
+
+  return null
+}
+
+function getErrorMessage(data: ApiResponseBody, fallback: string): string {
+  if (typeof data === 'string') {
+    return data.trim() || fallback
+  }
+
+  if (data && typeof data === 'object') {
+    return getErrorMessageFromObject(data as Record<string, unknown>) ?? fallback
+  }
+
+  return fallback
+}
+
+async function readResponseBody(response: Response): Promise<ApiResponseBody> {
+  const text = await response.text()
+
+  if (!text.trim()) {
+    return null
+  }
+
+  try {
+    return JSON.parse(text)
+  } catch {
+    return text
+  }
+}
+
 export interface User {
   id: string
   email: string
@@ -15,45 +90,55 @@ export interface Link {
   userId: string
   favicon?: string
 }
+export interface LinkResponse {
+  shortCode: string
+}
 
 // Mock delay to simulate API calls
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+// const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 // Auth API calls
 export const authApi = {
-  async signup(email: string, password: string, name: string): Promise<{ user: User; token: string }> {
-    await delay(1000)
-    
-    // TODO: Replace with actual API call
-    // const response = await fetch('YOUR_GOLANG_API/auth/signup', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ email, password, name })
-    // })
-    // return response.json()
-    
-    return {
-      user: {
-        id: '1',
-        email,
-        name,
-        role: 'user',
-        createdAt: new Date().toISOString()
-      },
-      token: 'mock_jwt_token_' + Date.now()
+  async signup(email: string, password: string, name: string): Promise<{ user: User | null; token: string | null; error: string | null }> {
+    // await delay(1000)
+
+    try {
+      const response = await fetch(`${BACKEND_API_URL}/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, name })
+      })
+
+      const data = await readResponseBody(response)
+
+      if (!response.ok) {
+        return {
+          user: null,
+          token: null,
+          error: getErrorMessage(data, 'Signup failed. Please try again.')
+        }
+      }
+
+      return { ...(data as { user: User; token: string | null }), error: null }
+    } catch {
+      return {
+        user: null,
+        token: null,
+        error: 'Network error. Please check your connection.'
+      }
     }
   },
 
   async signin(email: string, password: string): Promise<{ user: User; token: string }> {
-    await delay(1000)
+    // await delay(1000)
     
     // TODO: Replace with actual API call
-    // const response = await fetch('YOUR_GOLANG_API/auth/signin', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ email, password })
-    // })
-    // return response.json()
+    const response = await fetch(`${BACKEND_API_URL}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    })
+    return response.json()
     
     return {
       user: {
@@ -68,7 +153,7 @@ export const authApi = {
   },
 
   async signout(): Promise<void> {
-    await delay(500)
+    // await delay(500)
     
     // TODO: Replace with actual API call
     // await fetch('YOUR_GOLANG_API/auth/signout', {
@@ -78,7 +163,7 @@ export const authApi = {
   },
 
   async getCurrentUser(token: string): Promise<User> {
-    await delay(500)
+    // await delay(500)
     
     // TODO: Replace with actual API call
     // const response = await fetch('YOUR_GOLANG_API/auth/me', {
@@ -99,7 +184,7 @@ export const authApi = {
 // Links API calls
 export const linksApi = {
   async getLinks(token: string): Promise<Link[]> {
-    await delay(800)
+    // await delay(800)
     
     // TODO: Replace with actual API call
     // const response = await fetch('YOUR_GOLANG_API/links', {
@@ -138,8 +223,8 @@ export const linksApi = {
     ]
   },
 
-  async createLink(token: string, originalUrl: string, customCode?: string): Promise<Link> {
-    await delay(1000)
+  async createLink(token: string, originalUrl: string, customCode?: string): Promise<LinkResponse> {
+    // await delay(1000)
     
     // TODO: Replace with actual API call
     // const response = await fetch('YOUR_GOLANG_API/links', {
@@ -153,18 +238,18 @@ export const linksApi = {
     // return response.json()
     
     return {
-      id: Date.now().toString(),
+      // id: Date.now().toString(),
       shortCode: customCode || Math.random().toString(36).substring(2, 9),
-      originalUrl,
-      clicks: 0,
-      createdAt: new Date().toISOString(),
-      userId: '1',
-      favicon: `https://www.google.com/s2/favicons?domain=${new URL(originalUrl).hostname}&sz=128`
+      // originalUrl,
+      // clicks: 0,
+      // createdAt: new Date().toISOString(),
+      // userId: '1',
+      // favicon: `https://www.google.com/s2/favicons?domain=${new URL(originalUrl).hostname}&sz=128`
     }
   },
 
   async deleteLink(token: string, linkId: string): Promise<void> {
-    await delay(500)
+    // await delay(500)
     
     // TODO: Replace with actual API call
     // await fetch(`YOUR_GOLANG_API/links/${linkId}`, {
@@ -174,7 +259,7 @@ export const linksApi = {
   },
 
   async getLinkStats(token: string, linkId: string): Promise<{ clicks: number; lastClicked?: string }> {
-    await delay(500)
+    // await delay(500)
     
     // TODO: Replace with actual API call
     // const response = await fetch(`YOUR_GOLANG_API/links/${linkId}/stats`, {
