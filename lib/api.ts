@@ -117,7 +117,7 @@ function normalizeUser(
 ): User | null {
   const data = getRecordValue(value);
   const email = data
-    ? getStringValue(data.email) ?? fallbackEmail
+    ? (getStringValue(data.email) ?? fallbackEmail)
     : fallbackEmail;
 
   if (!email) {
@@ -357,24 +357,30 @@ export const linksApi = {
 
     // TODO: Replace with actual API call
     const response = await fetch(`${BACKEND_API_URL}/links`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({ originalUrl, shortCode: customCode })
-    })
+      body: JSON.stringify({ originalUrl, shortCode: customCode }),
+    });
     const data = await readResponseBody(response);
+
+    console.log("STATUS:", response.status);
+    console.log("RAW RESPONSE:", JSON.stringify(data, null, 2));
 
     if (!response.ok) {
       throw new Error(getErrorMessage(data, "Failed to create link."));
     }
 
-    const payload = getRecordValue(data);
+    const root = getRecordValue(data);
+    const payload = getRecordValue(root?.data) ?? root;
     const shortCode = getStringValue(payload?.shortCode);
 
     if (!shortCode) {
-      throw new Error("Link created, but the server did not return a short code.");
+      throw new Error(
+        "Link created, but the server did not return a short code.",
+      );
     }
 
     return {

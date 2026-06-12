@@ -158,7 +158,7 @@ export default function NewLinkPage() {
                           )
                         }
                         className="border-0 bg-transparent p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
-                        pattern="[a-z0-9-_]+"
+                        pattern="[a-z0-9_-]+"
                       />
                     </div>
                     <Button
