@@ -309,43 +309,34 @@ export const linksApi = {
     // await delay(800)
 
     // TODO: Replace with actual API call
-    // const response = await fetch('YOUR_GOLANG_API/links', {
-    //   headers: { 'Authorization': `Bearer ${token}` }
-    // })
-    // return response.json()
+    const response = await fetch(`${BACKEND_API_URL}/links`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    const data = await readResponseBody(response);
+if (!response.ok) {
+      throw new Error(getErrorMessage(data, "Failed to fetch links."));
+    }
 
-    return [
-      {
-        id: "1",
-        shortCode: "8tRJs5y",
-        originalUrl: "https://desishub.com",
-        clicks: 22,
-        createdAt: "2024-10-09T00:00:00Z",
-        userId: "1",
-        favicon:
-          "https://www.google.com/s2/favicons?domain=desishub.com&sz=128",
-      },
-      {
-        id: "2",
-        shortCode: "MD6TPVG",
-        originalUrl: "https://tiktok.com/@jbdesishub/video/7558771457585679672",
-        clicks: 8,
-        createdAt: "2024-10-08T00:00:00Z",
-        userId: "1",
-        favicon: "https://www.google.com/s2/favicons?domain=tiktok.com&sz=128",
-      },
-      {
-        id: "3",
-        shortCode: "8leWlK3",
-        originalUrl:
-          "https://desishub.com/courses/fullstack-web-and-mobile-development-course",
-        clicks: 5,
-        createdAt: "2024-07-26T00:00:00Z",
-        userId: "1",
-        favicon:
-          "https://www.google.com/s2/favicons?domain=desishub.com&sz=128",
-      },
-    ];
+    const root = getRecordValue(data as ApiResponseBody)
+    const list =
+      Array.isArray(root?.data) ? root.data :
+      Array.isArray(root?.links) ? root.links :
+      Array.isArray(data) ? data : [];
+    return list.map((item: unknown) => {
+      const link = getRecordValue(item) ?? {};
+      const originalUrl = getStringValue(link.originalUrl) ?? getStringValue(link.original_url) ?? "";
+      const hostname = (() => { try { return new URL(originalUrl).hostname; } catch { return ""; } })();
+
+      return {
+        id: getIdValue(link.id) ?? getIdValue(link.linkId) ?? Date.now().toString(),
+        shortCode: getStringValue(link.shortCode) ?? getStringValue(link.short_code) ?? "",
+        originalUrl,
+        clicks: typeof link.clicks === "number" ? link.clicks : 0,
+        createdAt: getStringValue(link.createdAt) ?? getStringValue(link.created_at) ?? new Date().toISOString(),
+        userId: getIdValue(link.userId) ?? getIdValue(link.user_id) ?? "",
+        favicon: getStringValue(link.favicon) ?? (hostname ? `https://www.google.com/s2/favicons?domain=${hostname}&sz=128` : undefined),
+      } satisfies Link;
+    });
   },
 
   async createLink(
